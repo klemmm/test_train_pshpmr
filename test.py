@@ -411,6 +411,7 @@ class TripVerifier:
             ok, pmr_lines = self._pmr_report(entry, day)
             for line in pmr_lines:
                 print("      " + line)
+            print("")
         print(f"\nVerdict: {ok}")
 
     @staticmethod
@@ -444,13 +445,14 @@ class TripVerifier:
         # Window during which the traveller is physically at the station.
         start_s = to_seconds(entry["arrival_time"]) or to_seconds(entry["departure_time"])
         end_s = to_seconds(entry["departure_time"]) or to_seconds(entry["arrival_time"])
-
         inrange = "OK"
         label, ranges, reason = PmrDirectory.hours_for_date(record, day)
         if reason:
             lines.append(f"Horaires assistance ({label}) : {reason} → hors couverture")
+            inrange = "KO"
         elif not ranges:
             lines.append(f"Horaires assistance ({label}) : non publiés → indéterminé")
+            inrange = "KO"
         else:
             pretty = " / ".join(
                 f"{a // 3600:02d}:{a % 3600 // 60:02d}-{b // 3600 % 24:02d}:{b % 3600 // 60:02d}"
