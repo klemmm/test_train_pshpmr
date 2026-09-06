@@ -101,22 +101,34 @@ class PmrDirectory:
             records = json.load(fh)
         self.by_uic = {str(r["Code_UIC"]): r for r in records}
 
+        # Les jours fériés sont nationaux : on agrège toutes les dates
+        # "JOUR FERIE" publiées par n'importe quelle gare pour repérer un férié
+        # même quand la gare courante ne publie pas d'horaires spécifiques.
+        self.national_holidays = set()
+        for r in records:
+            for i in range(1, 21):
+                ferie = r.get(f"JOUR FERIE {i}")
+                if ferie:
+                    self.national_holidays.add(str(ferie).split("T")[0])
+
     def get(self, uic):
         return self.by_uic.get(str(uic))
 
-    @staticmethod
-    def hours_for_date(record, date_str):
-        """Return (label, ranges, unavailable_reason) for the given AAAAMMJJ date.
+    def hours_for_date(self, record, date_str):
+        """Return (label, ranges, unavailable_reason, warning) for an AAAAMMJJ date.
 
         - unavailable_reason set -> assistance not offered that day
         - ranges empty with no reason -> station listed but no published hours
+        - warning set -> result is a fallback the caller should flag (e.g. a
+          national holiday for which this station publishes no specific hours,
+          so the ordinary weekday schedule is used instead)
         """
         day = datetime.strptime(date_str, "%Y%m%d").date()
         weekday_fr = WEEKDAYS_FR[day.weekday()]
 
         for i in range(1, 8):
             if record.get(f"JOUR INDISPONIBLE {i}") == weekday_fr:
-                return (f"{weekday_fr.capitalize()}", [], "jour indisponible")
+                return (f"{weekday_fr.capitalize()}", [], "jour indisponible", None)
 
         iso = day.isoformat()
         for i in range(1, 21):
@@ -124,13 +136,21 @@ class PmrDirectory:
             if ferie and str(ferie).split("T")[0] == iso:
                 spec = record.get(f"HORAIRES JOUR FERIE {i}")
                 if not spec:
-                    return (f"jour férié {iso}", [], "fermé (jour férié)")
-                return (f"jour férié {iso}", parse_hour_ranges(spec), None)
+                    return (f"jour férié {iso}", [], "fermé (jour férié)", None)
+                return (f"jour férié {iso}", parse_hour_ranges(spec), None, None)
+
+        warning = None
+        if iso in self.national_holidays:
+            warning = (
+                f"{iso} est un jour férié national, mais cette gare ne publie "
+                f"pas d'horaires « jour férié » : horaires nominaux du "
+                f"{weekday_fr.capitalize()} utilisés par défaut."
+            )
 
         spec = record.get(f"HORAIRES JOUR NOMINAL {weekday_fr}")
         if not spec:
-            return (f"{weekday_fr.capitalize()}", [], "pas d'horaires publiés")
-        return (f"{weekday_fr.capitalize()}", parse_hour_ranges(spec), None)
+            return (f"{weekday_fr.capitalize()}", [], "pas d'horaires publiés", warning)
+        return (f"{weekday_fr.capitalize()}", parse_hour_ranges(spec), None, warning)
 
 
 class ORM:
@@ -446,7 +466,9 @@ class TripVerifier:
         start_s = to_seconds(entry["arrival_time"]) or to_seconds(entry["departure_time"])
         end_s = to_seconds(entry["departure_time"]) or to_seconds(entry["arrival_time"])
         inrange = "OK"
-        label, ranges, reason = PmrDirectory.hours_for_date(record, day)
+        label, ranges, reason, warning = self.pmr.hours_for_date(record, day)
+        if warning:
+            lines.append(f"⚠ {warning}")
         if reason:
             lines.append(f"Horaires assistance ({label}) : {reason} → hors couverture")
             inrange = "KO"
