@@ -25,6 +25,15 @@ class ServiceException(IntEnum):
     RUNS = 1
     DOES_NOT_RUN = 2
 
+class Verdict(IntEnum):
+    OK = 0
+    MEH = 1
+    KO = 2
+verdict_names = {
+        0 : "OK",
+        1: "MEH",
+        2 : "KO",
+}
 
 def stop_uic(stop_id):
     """Extract the trailing UIC code from a GTFS stop_id.
@@ -408,6 +417,7 @@ class TripVerifier:
     def display_itinerary(self, visited, day):
         print()
         print("Gares visitées :")
+        v = Verdict.OK
         for n, entry in enumerate(visited, start=1):
             st = entry["station"]
             name = st["name"] or "?"
@@ -428,11 +438,13 @@ class TripVerifier:
                     f"(< {MIN_TRANSFER_MINUTES} min) entre le train "
                     f"{entry['arrive_par']} et le train {entry['repart_par']}"
                 )
+                v = max(v, Verdict.MEH)
             ok, pmr_lines = self._pmr_report(entry, day)
+            v = max(v, ok)
             for line in pmr_lines:
                 print("      " + line)
             print("")
-        print(f"\nVerdict: {ok}")
+        print(f"\nVerdict: {verdict_names[v]}")
 
     @staticmethod
     def _transfer_minutes(entry):
@@ -465,16 +477,17 @@ class TripVerifier:
         # Window during which the traveller is physically at the station.
         start_s = to_seconds(entry["arrival_time"]) or to_seconds(entry["departure_time"])
         end_s = to_seconds(entry["departure_time"]) or to_seconds(entry["arrival_time"])
-        inrange = "OK"
+        inrange = Verdict.OK
         label, ranges, reason, warning = self.pmr.hours_for_date(record, day)
         if warning:
             lines.append(f"⚠ {warning}")
+            inrange = Verdict.MEH
         if reason:
             lines.append(f"Horaires assistance ({label}) : {reason} → hors couverture")
-            inrange = "KO"
+            inrange = Verdict.KO
         elif not ranges:
             lines.append(f"Horaires assistance ({label}) : non publiés → indéterminé")
-            inrange = "KO"
+            inrange = Verdict.KO
         else:
             pretty = " / ".join(
                 f"{a // 3600:02d}:{a % 3600 // 60:02d}-{b // 3600 % 24:02d}:{b % 3600 // 60:02d}"
@@ -482,7 +495,7 @@ class TripVerifier:
             )
             ok = within_ranges(ranges, start_s, end_s)
             if not ok:
-                inrange = "KO"
+                inrange = Verdict.KO
             span = (
                 entry["arrival_time"] or entry["departure_time"],
                 entry["departure_time"] or entry["arrival_time"],
