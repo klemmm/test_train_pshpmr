@@ -411,7 +411,7 @@ class TripVerifier:
             ok, pmr_lines = self._pmr_report(entry, day)
             for line in pmr_lines:
                 print("      " + line)
-            print(f"\nVerdict: {ok}")
+        print(f"\nVerdict: {ok}")
 
     @staticmethod
     def _transfer_minutes(entry):
