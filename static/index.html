@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Itinéraire PMR/PSH</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Itinéraire PMR/PSH</h1>
+        <p class="subtitle">Vérifiez l'assistance PMR/PSH le long d'un itinéraire</p>
+      </div>
+    </header>
+
+    <div class="card form-card paste-card">
+      <button type="button" id="paste-toggle" class="paste-toggle" aria-expanded="false">
+        <span>📋 Importer depuis 1.2.TRAIN (coller le texte d'une page de résultats)</span>
+        <span class="chevron">▾</span>
+      </button>
+      <div id="paste-panel" class="paste-panel" hidden>
+        <p class="paste-hint">
+          Sur 1.2.TRAIN, sélectionnez tout le contenu de la page de résultats
+          (Ctrl/Cmd+A puis Ctrl/Cmd+C) et collez-le ci-dessous.
+        </p>
+        <textarea id="paste-text" rows="8" placeholder="Collez ici le texte copié depuis 1.2.TRAIN…"></textarea>
+        <div class="actions-row">
+          <button type="button" id="paste-analyze" class="btn btn-primary">Analyser le texte</button>
+        </div>
+        <div id="paste-error" class="error-banner" hidden></div>
+        <div id="paste-results" class="paste-results"></div>
+      </div>
+    </div>
+
+    <form id="trip-form" class="card form-card">
+      <h2>Itinéraire</h2>
+
+      <div class="field date-field">
+        <label for="trip-date">Date de circulation</label>
+        <input type="date" id="trip-date" required>
+      </div>
+
+      <div id="steps" class="steps"></div>
+
+      <div class="actions-row">
+        <button type="button" id="add-stop" class="btn btn-ghost">+ Ajouter une correspondance</button>
+        <button type="submit" id="submit-btn" class="btn btn-primary">Vérifier l'itinéraire</button>
+      </div>
+    </form>
+
+    <div id="error-banner" class="error-banner" hidden></div>
+    <div id="loading" class="loading" hidden>Vérification en cours…</div>
+    <div id="result"></div>
+
+        <footer>Outil OpenSource sous <a href="https://www.wtfpl.net/">WTFPL</a> - Dépôt <a href="https://github.com/klemmm/test_train_pshpmr">ici</a> - Pas de pubs - Pas de cookies - Pas de pistage</footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
